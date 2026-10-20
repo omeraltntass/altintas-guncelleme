@@ -1,0 +1,30 @@
+# "surum-X.Y.Z" dalına yüklenen kurulum dosyalarını GitHub sürümü olarak yayınlar, sonra dalı siler.
+# Kurulum dosyası 100 MB git sınırını aşmasın diye parçalar halinde gelir, burada birleştirilir.
+name: Sürümü yayınla
+on:
+  push:
+    branches: ['surum-*']
+permissions:
+  contents: write
+jobs:
+  yayinla:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dosyaları birleştir ve yayınla
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION="${GITHUB_REF_NAME#surum-}"
+          cd dosyalar
+          EXE="Altintas-Mobilya-Kurulum-${VERSION}.exe"
+          cat "${EXE}".part-* > "${EXE}"
+          grep -q "$(sha512sum "${EXE}" | cut -d' ' -f1 | xxd -r -p | base64 -w0)" latest.yml
+          gh release create "v${VERSION}" "${EXE}" "${EXE}.blockmap" latest.yml \
+            --repo "${GITHUB_REPOSITORY}" --title "Altıntaş Mobilya ${VERSION}" --notes-file NOTLAR.md
+      - name: Yükleme dalını sil
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: git push origin --delete "${GITHUB_REF_NAME}"
