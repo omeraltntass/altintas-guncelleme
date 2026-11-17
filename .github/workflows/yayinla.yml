@@ -1,5 +1,6 @@
 # "surum-X.Y.Z" dalına yüklenen kurulum dosyalarını GitHub sürümü olarak yayınlar, sonra dalı siler.
 # Kurulum dosyası 100 MB git sınırını aşmasın diye parçalar halinde gelir, burada birleştirilir.
+# Mac zip'i (ve latest-mac.yml) da varsa aynı sürüme eklenir; Mac'teki program güncellemeyi buradan indirip kendisi kurar.
 name: Sürümü yayınla
 on:
   push:
@@ -21,7 +22,16 @@ jobs:
           EXE="Altintas-Mobilya-Kurulum-${VERSION}.exe"
           cat "${EXE}".part-* > "${EXE}"
           grep -q "$(sha512sum "${EXE}" | cut -d' ' -f1 | xxd -r -p | base64 -w0)" latest.yml
-          gh release create "v${VERSION}" "${EXE}" "${EXE}.blockmap" latest.yml \
+          FILES=("${EXE}" "${EXE}.blockmap" latest.yml)
+          # Mac uygulaması (isteğe bağlı): zip ve program içinden güncelleme için latest-mac.yml
+          ZIP="Altintas-Mobilya-Mac-${VERSION}.zip"
+          if ls "${ZIP}".part-* >/dev/null 2>&1; then cat "${ZIP}".part-* > "${ZIP}"; fi
+          if [ -f "${ZIP}" ]; then
+            test -f latest-mac.yml
+            grep -q "$(sha512sum "${ZIP}" | cut -d' ' -f1 | xxd -r -p | base64 -w0)" latest-mac.yml
+            FILES+=("${ZIP}" latest-mac.yml)
+          fi
+          gh release create "v${VERSION}" "${FILES[@]}" \
             --repo "${GITHUB_REPOSITORY}" --title "Altıntaş Mobilya ${VERSION}" --notes-file NOTLAR.md
       - name: Yükleme dalını sil
         if: success()
